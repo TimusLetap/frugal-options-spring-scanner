@@ -47,13 +47,13 @@ function bsPrice(
 export const SpringPayoffCalculator: React.FC<SpringPayoffCalculatorProps> = ({ selectedOption }) => {
   const [ticker, setTicker] = useState<string>(selectedOption?.Ticker || 'NVDA');
   const [optionType, setOptionType] = useState<'CALL' | 'PUT'>(selectedOption?.Type || 'CALL');
-  const [spotPrice, setSpotPrice] = useState<number>(selectedOption?.Spot || 142.50);
-  const [strikePrice, setStrikePrice] = useState<number>(selectedOption?.Strike || 160.00);
-  const [entryAsk, setEntryAsk] = useState<number>(selectedOption?.Ask || 0.20);
-  const [dteDays, setDteDays] = useState<number>(selectedOption?.DTE || 35);
-  const [atrDaily, setAtrDaily] = useState<number>(4.80);
-  const [currentIvPct, setCurrentIvPct] = useState<number>(selectedOption?.IV || 34.0);
-  const [springIvPct, setSpringIvPct] = useState<number>((selectedOption?.Realized_HV || 48.0) * 1.15);
+  const [spotPrice, setSpotPrice] = useState<number>(selectedOption?.Spot || 188.70);
+  const [strikePrice, setStrikePrice] = useState<number>(selectedOption?.Strike || 215.00);
+  const [entryAsk, setEntryAsk] = useState<number>(selectedOption?.Ask || 0.21);
+  const [dteDays, setDteDays] = useState<number>(selectedOption?.DTE || 37);
+  const [atrDaily, setAtrDaily] = useState<number>(5.65);
+  const [currentIvPct, setCurrentIvPct] = useState<number>(selectedOption?.IV || 38.0);
+  const [springIvPct, setSpringIvPct] = useState<number>((selectedOption?.Realized_HV || 51.4) * 1.15);
   const [contracts, setContracts] = useState<number>(4);
 
   useEffect(() => {
