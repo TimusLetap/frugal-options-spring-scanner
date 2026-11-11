@@ -1,0 +1,37 @@
+[project]
+name = "frugal-options-spring-scanner"
+version = "1.0.0"
+description = "High-confidence 0DTE and Long Options Spring Scanner — discovers undervalued contracts (<= $0.25) in volatility coils with $1.00 to $10.00+ asymmetric payoff potential."
+authors = [{name = "TimusLetap", email = "28797042+TimusLetap@users.noreply.github.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "yfinance",
+    "pandas",
+    "numpy",
+    "pydantic",
+    "matplotlib",
+    "requests",
+    "requests-cache",
+    "scipy",
+    "mplfinance",
+    "pyrate-limiter>=4.0.0",
+    "tqdm>=4.66.0",
+    "pandas-market-calendars>=5.0.0",
+    "pyyaml>=6.0.0",
+    "python-dotenv>=1.0.0",
+    "finvizfinance",
+    "alpaca-py",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+spring-scan = "scanner:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

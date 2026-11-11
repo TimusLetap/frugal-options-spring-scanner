@@ -1,0 +1,62 @@
+# Frugal Options Spring Scanner — Trading & Quantitative Discovery Rules
+
+pricing:
+  min_premium: 0.01
+  max_premium: 0.25          # Strict $0.25 ($25/contract) max entry cost mandate
+  target_tier_1: 1.00        # 4x+ base spring target ($1.00 value)
+  target_tier_2: 10.00       # 40x+ super-spring target ($10.00+ value)
+
+spring_detection:
+  bbw_percentile_threshold: 25.0   # Bollinger Band Width in bottom 25% of 1-year range
+  max_hvr: 35.0                    # Historical Volatility Rank below 35% (compressed coil)
+  min_ema_slope: 0.10              # Directional EMA momentum slope
+  min_rs_rating: 70                # Relative Strength percentile rank
+  min_layers_confirmed: 2          # "2 of 4" technical spring layers gate
+
+undervaluation:
+  max_iv_hv_ratio: 1.15            # Implied Volatility <= 1.15x Realized Volatility (prefer IV < HV)
+  max_iv_rank: 0.50                # IV Rank in lower half of 52-week realized range
+  breakout_hv_quantile: 0.85       # 85th percentile HV used for spring release repricing
+
+zero_dte:
+  max_premium: 0.25
+  max_spread_sub_10c: 0.035        # Max $0.03 spread on quotes <= $0.10
+  max_spread_sub_25c: 0.055        # Max $0.05 spread on quotes $0.11 - $0.25
+  min_open_interest: 50
+  min_vol_oi_ratio: 0.50
+  min_underlying_price: 10.0
+  min_underlying_adv: 1000000
+
+long_spring:
+  max_premium: 0.25
+  min_dte: 7                       # Covers Swing (7-60 DTE) & Long/LEAPS (60-730 DTE)
+  max_dte: 730
+  max_spread: 0.08                 # Tight spread cap on <= $0.25 contracts
+  min_open_interest: 25
+  min_volume: 5
+  contract_types:
+    - CALL
+    - PUT
+  top_n_tickers: 75
+
+risk:
+  max_portfolio_risk_pct: 0.15     # Cash account T+1 rule (10-20% max allocation)
+  daily_account_risk_pct: 0.02     # 2% daily risk cap
+  stop_loss_pct: 0.20              # Hard stop-loss (-20%)
+  take_profit_pct: 0.30            # Base bracket take-profit (+30%)
+  take_profit_tier_1_price: 1.00   # First scale-out at $1.00 (4x+)
+  take_profit_tier_2_price: 10.00  # Runner target at $10.00+ (40x+)
+  allow_averaging_down: false      # Absolute Anti-Averaging Guardrail
+
+filters:
+  min_delta: 0.45
+  max_delta: 0.55
+  max_spread: 0.05
+  max_expected_move_exhaustion_pct: 0.75
+
+schedule:
+  entry_start_et: "09:45"
+  entry_end_et: "11:15"
+  midday_blackout_start_et: "11:30"
+  midday_blackout_end_et: "13:15"
+  terminal_cutoff_et: "13:15"

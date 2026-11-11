@@ -1,0 +1,67 @@
+name: Daily 0DTE & Long Options Spring Scan (<= $0.25)
+
+on:
+  schedule:
+    # Run at 13:45 UTC (9:45 AM EST / Prime Momentum Window Open) Mon-Fri
+    - cron: '45 13 * * 1-5'
+    # Run at 21:00 UTC (5:00 PM EST / Post-Market Outcome & Long Spring Discovery) Mon-Fri
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Scan to run (all, 0dte, leaps, gamma)'
+        required: true
+        default: 'all'
+      max_premium:
+        description: 'Max contract premium in dollars (default 0.25)'
+        required: true
+        default: '0.25'
+      universe:
+        description: 'Ticker universe (default, finviz, liquidity, 13f, nasdaq)'
+        required: true
+        default: 'default'
+
+jobs:
+  spring_scanner:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Frugal Options Spring Scanner
+        env:
+          DISCORD_GAMMA_WEBHOOK: ${{ secrets.DISCORD_GAMMA_WEBHOOK }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          SCANNER_PAPER_TRADING: "true"
+          SCANNER_WORKERS: "10"
+        run: |
+          SCAN_TYPE="${{ inputs.scan_type || 'all' }}"
+          MAX_PREM="${{ inputs.max_premium || '0.25' }}"
+          UNIV="${{ inputs.universe || 'default' }}"
+          uv run python scanner.py --scan "$SCAN_TYPE" --max-premium "$MAX_PREM" --universe "$UNIV" --update-outcomes --live-post --force-0dte
+
+      - name: Commit and push updated scan reports & running trade logs
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/reports/*.csv data/history/*.csv *.csv 2>/dev/null || true
+          git commit -m "Automated update: <= $0.25 0DTE & Long Spring scan reports" || echo "No changes to commit"
+          git push
