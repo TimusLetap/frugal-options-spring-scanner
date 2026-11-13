@@ -546,6 +546,17 @@ export const App: React.FC = () => {
   const [only10DollarTarget, setOnly10DollarTarget] = useState<boolean>(false);
   const [onlyTtmSqueeze, setOnlyTtmSqueeze] = useState<boolean>(false);
 
+  const [tickerScanInput, setTickerScanInput] = useState<string>('NVDA, TSLA, PLTR, AMD');
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [onlyQualified, setOnlyQualified] = useState<boolean>(true);
+  const [scanSummary, setScanSummary] = useState<{
+    message: string;
+    qualifiedTickers: string[];
+    unqualifiedTickers: string[];
+    scannedAt: string;
+    isError?: boolean;
+  } | null>(null);
+
   const [longSpringData, setLongSpringData] = useState<LongSpringOpportunity[]>(INITIAL_LONG_SPRINGS);
   const [zeroDteData, setZeroDteData] = useState<ZeroDteSpringOpportunity[]>(INITIAL_0DTE_SPRINGS);
   const [gammaData, setGammaData] = useState<GammaOpportunity[]>(INITIAL_GAMMA_COILS);
@@ -583,6 +594,61 @@ export const App: React.FC = () => {
       }
     } catch {
       // Uses initial quantitative datasets when running standalone
+    }
+  };
+
+  const runDynamicScan = async (opts: { tickers?: string; preset?: string; label: string }) => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setScanSummary({
+      message: `Scanning live options chains & volatility coils (${opts.label})...`,
+      qualifiedTickers: [],
+      unqualifiedTickers: [],
+      scannedAt: '',
+    });
+
+    try {
+      const res = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tickers: opts.tickers || '',
+          preset: opts.preset || '',
+          max_premium: 0.25,
+          only_qualified: onlyQualified,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.error || 'Dynamic scan failed');
+      }
+
+      setLongSpringData(data.long_springs || []);
+      setZeroDteData(data.zero_dte_springs || []);
+      setGammaData(data.gamma_coils || []);
+      if (data.gamma_coils && data.gamma_coils.length > 0) {
+        setSelectedGamma(data.gamma_coils[0]);
+      }
+      if (data.long_springs && data.long_springs.length > 0) {
+        setSelectedOptionForSim(data.long_springs[0]);
+      }
+
+      setScanSummary({
+        message: `Scanned ${data.counts.scanned} ticker(s) ➔ ${data.counts.qualified_tickers} qualified (${data.counts.long_springs} Long, ${data.counts.zero_dte_springs} 0DTE, ${data.counts.gamma_coils} Coils)`,
+        qualifiedTickers: data.qualified_tickers || [],
+        unqualifiedTickers: data.unqualified_tickers || [],
+        scannedAt: data.scanned_at || '',
+      });
+    } catch (err) {
+      setScanSummary({
+        message: `Scan error: ${err instanceof Error ? err.message : 'Unable to reach scanner API'}`,
+        qualifiedTickers: [],
+        unqualifiedTickers: [],
+        scannedAt: '',
+        isError: true,
+      });
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -637,11 +703,116 @@ export const App: React.FC = () => {
             STRICT &le; $0.25 FRUGAL MANDATE ACTIVE
           </div>
 
-          <button className="btn-action" onClick={loadAllReports}>
-            <RefreshCw size={14} /> Refresh Scan Data
+          <button className="btn-action" onClick={loadAllReports} disabled={isScanning}>
+            <RefreshCw size={14} className={isScanning ? 'animate-spin' : ''} /> Reload Saved CSV
           </button>
         </div>
       </header>
+
+      {/* Dynamic Live Ticker Scanner Control Bar */}
+      <section className="glass-panel" style={{ padding: '16px 20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 340px' }}>
+            <div className="search-input-wrapper" style={{ flex: 1 }}>
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Enter ticker(s) to scan live (e.g., NVDA, TSLA, PLTR, ARM)..."
+                value={tickerScanInput}
+                onChange={e => setTickerScanInput(e.target.value.toUpperCase())}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && tickerScanInput.trim()) {
+                    runDynamicScan({ tickers: tickerScanInput, label: tickerScanInput });
+                  }
+                }}
+              />
+            </div>
+            <button
+              className="btn-action btn-primary"
+              disabled={isScanning || !tickerScanInput.trim()}
+              onClick={() => runDynamicScan({ tickers: tickerScanInput, label: tickerScanInput })}
+            >
+              <Zap size={14} /> {isScanning ? 'Scanning...' : 'Scan Ticker(s)'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              className="btn-action"
+              disabled={isScanning}
+              onClick={() => runDynamicScan({ preset: 'indices', label: 'Indices (SPY, QQQ, IWM)' })}
+            >
+              <Flame size={14} /> Scan Indices (SPY/QQQ/IWM)
+            </button>
+            <button
+              className="btn-action"
+              disabled={isScanning}
+              onClick={() => runDynamicScan({ preset: 'ai_semis', label: 'AI & Semis' })}
+            >
+              <TrendingUp size={14} /> Scan AI &amp; Semis
+            </button>
+            <button
+              className="btn-action"
+              disabled={isScanning}
+              onClick={() => runDynamicScan({ preset: 'high_beta', label: 'High-Beta & Crypto' })}
+            >
+              <Rocket size={14} /> Scan High-Beta
+            </button>
+            <button
+              className="btn-action"
+              disabled={isScanning}
+              onClick={() => runDynamicScan({ preset: 'universe', label: 'Full Universe (50 Tickers)' })}
+            >
+              <Activity size={14} /> Scan Full Universe
+            </button>
+            <button
+              className={`btn-action ${onlyQualified ? 'btn-primary' : ''}`}
+              onClick={() => setOnlyQualified(!onlyQualified)}
+              title="Only include tickers that pass <= $0.25 ask, $1.00+ payoff, and coil/undervaluation qualification"
+            >
+              <ShieldCheck size={14} /> {onlyQualified ? 'Qualified Only: ON' : 'Qualified Only: OFF'}
+            </button>
+          </div>
+        </div>
+
+        {scanSummary && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              background: scanSummary.isError ? 'rgba(244, 63, 94, 0.12)' : 'rgba(16, 185, 129, 0.08)',
+              border: `1px solid ${scanSummary.isError ? 'rgba(244, 63, 94, 0.35)' : 'rgba(16, 185, 129, 0.25)'}`,
+              color: scanSummary.isError ? '#fda4af' : 'var(--text-main)',
+            }}
+          >
+            <div>
+              <strong>{scanSummary.message}</strong>
+              {scanSummary.qualifiedTickers.length > 0 && (
+                <span style={{ marginLeft: '10px', color: 'var(--emerald-primary)' }}>
+                  Qualified: {scanSummary.qualifiedTickers.join(', ')}
+                </span>
+              )}
+              {scanSummary.unqualifiedTickers.length > 0 && (
+                <span style={{ marginLeft: '10px', color: 'var(--text-dim)' }}>
+                  Filtered out (unqualified): {scanSummary.unqualifiedTickers.join(', ')}
+                </span>
+              )}
+            </div>
+            {scanSummary.scannedAt && (
+              <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                Last Live Scan: {scanSummary.scannedAt}
+              </span>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* KPI Overview Grid */}
       <div className="stats-grid">
